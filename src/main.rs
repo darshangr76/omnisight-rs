@@ -22,19 +22,29 @@ async fn main() {
 
     let tx_camera = tx.clone();
     tokio::task::spawn_blocking(move || {
-        let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+        // 1. Open the video file
+        let mut cam = videoio::VideoCapture::from_file("sample.mp4", videoio::CAP_ANY).unwrap();
         let mut frame = core::Mat::default();
         
         loop {
-            if cam.read(&mut frame).unwrap() && !frame.empty() {
+            // 2. Read the frame
+            let success = cam.read(&mut frame).unwrap();
+            if success && !frame.empty() {
                 let mut buf = core::Vector::<u8>::new();
                 let params = core::Vector::<i32>::new();
-                imgcodecs::imencode(".jpg", &frame, &mut buf, &params).unwrap();
                 
-                // ZERO-COPY: Wrap in Arc
-                let frame_arc = Arc::new(buf.to_vec());
-                let _ = tx_camera.send(frame_arc);
+                // 3. Encode to JPEG
+                if imgcodecs::imencode(".jpg", &frame, &mut buf, &params).is_ok() {
+                    // 4. Zero-Copy Broadcast
+                    let frame_arc = Arc::new(buf.to_vec());
+                    let _ = tx_camera.send(frame_arc);
+                }
+            } else {
+                // 5. Loop the video back to the start
+                cam.set(videoio::CAP_PROP_POS_FRAMES, 0.0).unwrap();
             }
+            
+            // 6. Frame rate control (approx 30 FPS)
             std::thread::sleep(Duration::from_millis(33));
         }
     });
@@ -55,7 +65,7 @@ async fn root() -> impl IntoResponse {
         <body style="background: #0a0a0a; color: white; text-align: center; font-family: sans-serif;">
             <h1>OmniSight-RS</h1>
             <p style="color: #4dff88; letter-spacing: 2px;">Zero-Copy Rust Inference Engine</p>
-            <img src="/video_feed" style="max-width: 800px; border: 2px solid #4dff88; border-radius: 10px;" />
+            <img src="/video_feed" style="max-width: 800px; border: 2px solid #4dff88; border-radius: 10px; box-shadow: 0 0 30px rgba(77,255,136,0.2);" />
         </body>
     </html>
     "#;
