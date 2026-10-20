@@ -1,0 +1,11 @@
+[package]
+name = "omnisight"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.36", features = ["full"] }
+opencv = { version = "0.101", features = ["clang-runtime"] }
+async-stream = "0.3"
+bytes = "1.5"
